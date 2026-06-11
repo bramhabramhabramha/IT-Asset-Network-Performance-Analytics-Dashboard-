@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+pandas
+numpy
+python-multipart
+cachetools
+httpx
+pytest
+pytest-asyncio

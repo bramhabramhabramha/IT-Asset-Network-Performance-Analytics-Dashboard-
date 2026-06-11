@@ -1,0 +1,1598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IT Asset & Network Analytics Dashboard</title>
+  <meta name="description" content="Real-time IT asset tracking, network uptime analytics, and anomaly detection dashboard powered by FastAPI and NumPy." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    /* ─── CSS Reset & Tokens ─────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-base:       #080c14;
+      --bg-surface:    #0d1424;
+      --bg-card:       #111a2e;
+      --bg-card-hover: #162035;
+      --bg-glass:      rgba(17, 26, 46, 0.7);
+
+      --accent-blue:   #3b82f6;
+      --accent-cyan:   #06b6d4;
+      --accent-green:  #10b981;
+      --accent-amber:  #f59e0b;
+      --accent-red:    #ef4444;
+      --accent-purple: #8b5cf6;
+
+      --text-primary:  #e2e8f0;
+      --text-muted:    #64748b;
+      --text-dim:      #94a3b8;
+
+      --border:        rgba(255,255,255,0.06);
+      --border-glow:   rgba(59,130,246,0.3);
+
+      --radius-sm:  8px;
+      --radius-md:  12px;
+      --radius-lg:  18px;
+      --radius-xl:  24px;
+
+      --shadow-card: 0 4px 24px rgba(0,0,0,0.4), 0 1px 0 rgba(255,255,255,0.04) inset;
+      --shadow-glow: 0 0 40px rgba(59,130,246,0.12);
+
+      --transition: 200ms cubic-bezier(0.4,0,0.2,1);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg-base);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ─── Animated Background ────────────────────────────────────────── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 50% at 20% 10%, rgba(59,130,246,0.07) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 80% 80%, rgba(139,92,246,0.05) 0%, transparent 60%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ─── Layout ─────────────────────────────────────────────────────── */
+    #app { position: relative; z-index: 1; }
+
+    /* ─── Sidebar ────────────────────────────────────────────────────── */
+    .sidebar {
+      position: fixed;
+      top: 0; left: 0;
+      width: 220px; height: 100vh;
+      background: var(--bg-surface);
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      padding: 28px 16px;
+      z-index: 100;
+      backdrop-filter: blur(20px);
+    }
+
+    .sidebar-logo {
+      display: flex; align-items: center; gap: 10px;
+      padding: 0 8px 28px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sidebar-logo .logo-icon {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+      box-shadow: 0 4px 12px rgba(59,130,246,0.4);
+    }
+
+    .sidebar-logo span {
+      font-size: 13px; font-weight: 700;
+      color: var(--text-primary);
+      line-height: 1.2;
+    }
+
+    .sidebar-logo small { color: var(--text-muted); font-weight: 400; font-size: 10px; }
+
+    .nav-section {
+      margin-top: 24px;
+      flex: 1;
+    }
+
+    .nav-label {
+      font-size: 10px; font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      padding: 0 8px;
+      margin-bottom: 8px;
+    }
+
+    .nav-link {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 12px;
+      border-radius: var(--radius-sm);
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 13.5px; font-weight: 500;
+      cursor: pointer;
+      transition: all var(--transition);
+      margin-bottom: 2px;
+      border: 1px solid transparent;
+    }
+
+    .nav-link:hover, .nav-link.active {
+      color: var(--text-primary);
+      background: rgba(59,130,246,0.1);
+      border-color: rgba(59,130,246,0.15);
+    }
+
+    .nav-link.active { color: var(--accent-blue); }
+
+    .nav-link .nav-icon { font-size: 16px; width: 20px; text-align: center; }
+
+    .sidebar-status {
+      padding: 14px;
+      background: rgba(16,185,129,0.08);
+      border: 1px solid rgba(16,185,129,0.2);
+      border-radius: var(--radius-md);
+      margin-top: auto;
+    }
+
+    .status-dot {
+      display: inline-block;
+      width: 7px; height: 7px;
+      background: var(--accent-green);
+      border-radius: 50%;
+      animation: pulse-green 2s infinite;
+      margin-right: 6px;
+    }
+
+    @keyframes pulse-green {
+      0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(16,185,129,0.4); }
+      50% { opacity: 0.8; box-shadow: 0 0 0 4px rgba(16,185,129,0); }
+    }
+
+    .sidebar-status p { font-size: 11.5px; color: var(--accent-green); font-weight: 500; }
+    .sidebar-status small { font-size: 10px; color: var(--text-muted); }
+
+    /* ─── Main Content ───────────────────────────────────────────────── */
+    .main-content {
+      margin-left: 220px;
+      min-height: 100vh;
+      padding: 32px;
+    }
+
+    /* ─── Top Bar ────────────────────────────────────────────────────── */
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 32px;
+    }
+
+    .topbar-title h1 {
+      font-size: 24px; font-weight: 800;
+      background: linear-gradient(135deg, var(--text-primary), var(--text-dim));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .topbar-title p { color: var(--text-muted); font-size: 13px; margin-top: 2px; }
+
+    .topbar-actions { display: flex; gap: 12px; }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 9px 16px;
+      border-radius: var(--radius-sm);
+      font-size: 13px; font-weight: 600;
+      cursor: pointer;
+      transition: all var(--transition);
+      border: none; outline: none;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent-blue), #6366f1);
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(59,130,246,0.35);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(59,130,246,0.5);
+    }
+
+    .btn-primary:active { transform: translateY(0); }
+
+    .btn-ghost {
+      background: var(--bg-card);
+      color: var(--text-dim);
+      border: 1px solid var(--border);
+    }
+
+    .btn-ghost:hover { border-color: var(--border-glow); color: var(--text-primary); }
+
+    /* ─── Page Sections ──────────────────────────────────────────────── */
+    .page { display: none; }
+    .page.active { display: block; }
+
+    /* ─── KPI Cards ──────────────────────────────────────────────────── */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+
+    .kpi-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 22px 20px;
+      box-shadow: var(--shadow-card);
+      position: relative;
+      overflow: hidden;
+      transition: all var(--transition);
+    }
+
+    .kpi-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--kpi-color, var(--accent-blue));
+      border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    }
+
+    .kpi-card:hover {
+      transform: translateY(-2px);
+      border-color: var(--border-glow);
+      box-shadow: var(--shadow-card), var(--shadow-glow);
+    }
+
+    .kpi-label {
+      font-size: 11.5px; font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      margin-bottom: 10px;
+    }
+
+    .kpi-value {
+      font-size: 30px; font-weight: 800;
+      color: var(--text-primary);
+      line-height: 1;
+      margin-bottom: 6px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .kpi-sub {
+      font-size: 11.5px;
+      color: var(--text-muted);
+      display: flex; align-items: center; gap: 4px;
+    }
+
+    .kpi-icon {
+      position: absolute;
+      right: 18px; top: 18px;
+      font-size: 28px;
+      opacity: 0.15;
+    }
+
+    .badge {
+      display: inline-flex; align-items: center;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-size: 10.5px; font-weight: 600;
+      letter-spacing: 0.03em;
+    }
+
+    .badge-green  { background: rgba(16,185,129,0.15); color: var(--accent-green); }
+    .badge-red    { background: rgba(239,68,68,0.15);  color: var(--accent-red); }
+    .badge-amber  { background: rgba(245,158,11,0.15); color: var(--accent-amber); }
+    .badge-blue   { background: rgba(59,130,246,0.15); color: var(--accent-blue); }
+
+    /* ─── Grid & Cards ───────────────────────────────────────────────── */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      box-shadow: var(--shadow-card);
+      transition: border-color var(--transition);
+    }
+
+    .card:hover { border-color: rgba(255,255,255,0.1); }
+
+    .card-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    .card-title {
+      font-size: 14px; font-weight: 700;
+      color: var(--text-primary);
+      display: flex; align-items: center; gap: 8px;
+    }
+
+    .card-title .card-icon {
+      width: 28px; height: 28px;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px;
+    }
+
+    .card-subtitle { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+    /* ─── Chart container ────────────────────────────────────────────── */
+    .chart-wrap { position: relative; height: 220px; }
+    .chart-wrap-lg { position: relative; height: 280px; }
+
+    /* ─── Table ──────────────────────────────────────────────────────── */
+    .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+
+    .data-table th {
+      text-align: left;
+      padding: 8px 12px;
+      font-size: 10.5px; font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .data-table td {
+      padding: 11px 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+      color: var(--text-dim);
+      transition: background var(--transition);
+    }
+
+    .data-table tr:hover td { background: rgba(255,255,255,0.02); color: var(--text-primary); }
+    .data-table tr:last-child td { border-bottom: none; }
+
+    .mono { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+
+    /* ─── Severity badges ────────────────────────────────────────────── */
+    .sev-critical { background: rgba(239,68,68,0.15);   color: #f87171; }
+    .sev-high     { background: rgba(245,158,11,0.15);  color: var(--accent-amber); }
+    .sev-medium   { background: rgba(139,92,246,0.15);  color: #a78bfa; }
+    .sev-normal   { background: rgba(16,185,129,0.15);  color: var(--accent-green); }
+    .sev-excellent{ background: rgba(16,185,129,0.15);  color: var(--accent-green); }
+    .sev-good     { background: rgba(59,130,246,0.15);  color: var(--accent-blue); }
+    .sev-fair     { background: rgba(245,158,11,0.15);  color: var(--accent-amber); }
+    .sev-poor     { background: rgba(239,68,68,0.15);   color: #f87171; }
+
+    /* ─── Progress Bar ───────────────────────────────────────────────── */
+    .progress-bar {
+      height: 5px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      border-radius: 10px;
+      transition: width 0.8s ease;
+    }
+
+    /* ─── Loading Skeleton ───────────────────────────────────────────── */
+    .skeleton {
+      background: linear-gradient(90deg, var(--bg-card) 25%, var(--bg-card-hover) 50%, var(--bg-card) 75%);
+      background-size: 200% 100%;
+      animation: skeleton-shimmer 1.5s infinite;
+      border-radius: 6px;
+    }
+
+    @keyframes skeleton-shimmer {
+      0%   { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    /* ─── Spinner ────────────────────────────────────────────────────── */
+    .spinner {
+      width: 40px; height: 40px;
+      border: 3px solid rgba(59,130,246,0.15);
+      border-top-color: var(--accent-blue);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 40px auto;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ─── Toast ──────────────────────────────────────────────────────── */
+    #toast-container {
+      position: fixed;
+      bottom: 28px; right: 28px;
+      z-index: 1000;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+
+    .toast {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 18px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+      font-size: 13px;
+      animation: toast-in 0.3s ease;
+      max-width: 340px;
+    }
+
+    @keyframes toast-in {
+      from { transform: translateY(20px); opacity: 0; }
+      to   { transform: translateY(0);   opacity: 1; }
+    }
+
+    /* ─── Stat Row ───────────────────────────────────────────────────── */
+    .stat-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .stat-row:last-child { border-bottom: none; }
+
+    .stat-row-label { font-size: 13px; color: var(--text-muted); }
+    .stat-row-value { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600; color: var(--text-primary); }
+
+    /* ─── Scrollbar ──────────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+
+    /* ─── Responsive ─────────────────────────────────────────────────── */
+    @media (max-width: 1100px) {
+      .grid-2 { grid-template-columns: 1fr; }
+      .grid-3 { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media (max-width: 780px) {
+      .sidebar { display: none; }
+      .main-content { margin-left: 0; padding: 20px; }
+      .grid-3 { grid-template-columns: 1fr; }
+    }
+
+    /* ─── Full width helper ──────────────────────────────────────────── */
+    .col-full { grid-column: 1 / -1; }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ─── Sidebar ────────────────────────────────────────────────────── -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">📡</div>
+      <div>
+        <span>AssetIQ<br/><small>Analytics Platform</small></span>
+      </div>
+    </div>
+
+    <nav class="nav-section">
+      <p class="nav-label">Overview</p>
+      <a class="nav-link active" onclick="showPage('overview')" id="nav-overview">
+        <span class="nav-icon">🏠</span> Dashboard
+      </a>
+      <a class="nav-link" onclick="showPage('assets')" id="nav-assets">
+        <span class="nav-icon">🖥️</span> Assets
+      </a>
+
+      <p class="nav-label" style="margin-top:20px">Network</p>
+      <a class="nav-link" onclick="showPage('network')" id="nav-network">
+        <span class="nav-icon">📶</span> Uptime & Stats
+      </a>
+      <a class="nav-link" onclick="showPage('anomalies')" id="nav-anomalies">
+        <span class="nav-icon">⚠️</span> Anomalies
+      </a>
+      <a class="nav-link" onclick="showPage('reliability')" id="nav-reliability">
+        <span class="nav-icon">🏆</span> Reliability
+      </a>
+
+      <p class="nav-label" style="margin-top:20px">Maintenance</p>
+      <a class="nav-link" onclick="showPage('maintenance')" id="nav-maintenance">
+        <span class="nav-icon">🔧</span> Logs & Failures
+      </a>
+
+      <p class="nav-label" style="margin-top:20px">Reports</p>
+      <a class="nav-link" onclick="showPage('report')" id="nav-report">
+        <span class="nav-icon">📊</span> Summary Report
+      </a>
+    </nav>
+
+    <div class="sidebar-status">
+      <p><span class="status-dot"></span>API Connected</p>
+      <small id="last-refresh">Loading…</small>
+    </div>
+  </aside>
+
+  <!-- ─── Main ───────────────────────────────────────────────────────── -->
+  <main class="main-content">
+
+    <!-- Topbar -->
+    <div class="topbar">
+      <div class="topbar-title">
+        <h1 id="page-title">Dashboard Overview</h1>
+        <p id="page-sub">Real-time IT asset & network performance insights</p>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-ghost" onclick="refreshAll()" id="refresh-btn">
+          ↻ Refresh
+        </button>
+        <button class="btn btn-primary" onclick="showPage('report')">
+          📊 Full Report
+        </button>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════════════ -->
+    <!-- PAGE: Overview                                                   -->
+    <!-- ════════════════════════════════════════════════════════════════ -->
+    <section class="page active" id="page-overview">
+
+      <!-- KPI Row -->
+      <div class="kpi-grid" id="kpi-grid">
+        <div class="kpi-card skeleton" style="height:110px;--kpi-color:var(--accent-blue)"></div>
+        <div class="kpi-card skeleton" style="height:110px;--kpi-color:var(--accent-green)"></div>
+        <div class="kpi-card skeleton" style="height:110px;--kpi-color:var(--accent-amber)"></div>
+        <div class="kpi-card skeleton" style="height:110px;--kpi-color:var(--accent-red)"></div>
+        <div class="kpi-card skeleton" style="height:110px;--kpi-color:var(--accent-purple)"></div>
+      </div>
+
+      <!-- Charts Row -->
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">
+                <div class="card-icon" style="background:rgba(59,130,246,0.15)">📈</div>
+                Daily Uptime Trend
+              </div>
+              <p class="card-subtitle">Mean uptime across all network nodes</p>
+            </div>
+          </div>
+          <div class="chart-wrap"><canvas id="trend-chart"></canvas></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">
+                <div class="card-icon" style="background:rgba(139,92,246,0.15)">🖥️</div>
+                Assets by Type
+              </div>
+              <p class="card-subtitle">Distribution of hardware categories</p>
+            </div>
+          </div>
+          <div class="chart-wrap"><canvas id="asset-type-chart"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Stats + Maintenance -->
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <div class="card-icon" style="background:rgba(6,182,212,0.15)">📡</div>
+              Network KPIs
+            </div>
+          </div>
+          <div id="network-kpi-list"><div class="spinner"></div></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <div class="card-icon" style="background:rgba(245,158,11,0.15)">🔧</div>
+              Maintenance Health
+            </div>
+          </div>
+          <div id="maint-health-list"><div class="spinner"></div></div>
+        </div>
+      </div>
+
+    </section><!-- /overview -->
+
+    <!-- ════════════════════════════════════════════════════════════════ -->
+    <!-- PAGE: Assets                                                     -->
+    <!-- ════════════════════════════════════════════════════════════════ -->
+    <section class="page" id="page-assets">
+      <div class="grid-2" style="margin-bottom:20px">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <div class="card-icon" style="background:rgba(16,185,129,0.15)">📍</div>
+              Assets by Location
+            </div>
+          </div>
+          <div class="chart-wrap"><canvas id="location-chart"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <div class="card-icon" style="background:rgba(139,92,246,0.15)">📅</div>
+              Age Distribution (years)
+            </div>
+          </div>
+          <div class="chart-wrap"><canvas id="age-chart"></canvas></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <div class="card-icon" style="background:rgba(59,130,246,0.15)">📋</div>
+            Hardware Inventory
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-ghost" onclick="filterAssets('all')" id="f-all">All</button>
+            <button class="btn btn-ghost" onclick="filterAssets('active')" id="f-active">Active</button>
+            <button class="btn btn-ghost" onclick="filterAssets('inactive')" id="f-inactive">Inactive</button>
+          </div>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="data-table" id="assets-table">
+            <thead>
+              <tr>
+                <th>Asset ID</th><th>Name</th><th>Type</th>
+                <th>Location</th><th>Status</th><th>Purchase Date</th><th>Age (days)</th>
+              </tr>
+            </thead>
+            <tbody id="assets-body"><tr><td colspan="7"><div class="spinner"></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════════════ -->
+    <!-- PAGE: Network                                                    -->
+    <!-- ════════════════════════════════════════════════════════════════ -->
+    <section class="page" id="page-network">
+      <div class="kpi-grid" id="network-kpis"></div>
+
+      <div class="grid-2">
+        <div class="card col-full">
+          <div class="card-header">
+            <div class="card-title">
+              <div class="card-icon" style="background:rgba(59,130,246,0.15)">📈</div>
+              Daily Uptime Trend
+            </div>
+          </div>
+          <div class="chart-wrap-lg"><canvas id="trend-chart-2"></canvas></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <div class="card-icon" style="background:rgba(6,182,212,0.15)">📊</div>
+            Uptime Statistics Summary
+          </div>
+        </div>
+        <div id="network-stats-detail"><div class="spinner"></div></div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════════════ -->
+    <!-- PAGE: Anomalies                                                  -->
+    <!-- ════════════════════════════════════════════════════════════════ -->
+    <section class="page" id="page-anomalies">
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-header">
+          <div class="card-title">
+            <div class="card-icon" style="background:rgba(239,68,68,0.15)">⚠️</div>
+            Anomaly Detection — Z-Score Analysis
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <label style="font-size:12px;color:var(--text-muted)">Z-threshold:</label>
+            <select id="z-select" onchange="loadAnomalies()" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-primary);padding:6px 10px;border-radius:6px;font-size:13px;">
+              <option value="1.5">1.5σ</option>
+              <option value="2.0" selected>2.0σ</option>
+              <option value="2.5">2.5σ</option>
+              <option value="3.0">3.0σ</option>
+            </select>
+          </div>
+        </div>
+        <p style="font-size:12.5px;color:var(--text-muted);margin-bottom:20px">
+          Nodes whose uptime falls below the Z-score threshold relative to the fleet mean — flagged for investigation.
+        </p>
+        <div style="overflow-x:auto">
+          <table class="data-table" id="anomaly-table">
+            <thead>
+              <tr>
+                <th>Node ID</th><th>Node Name</th><th>Date</th>
+                <th>Uptime (h)</th><th>Downtime (h)</th><th>Z-Score</th><th>Severity</th>
+              </tr>
+            </thead>
+            <tbody id="anomaly-body"><tr><td colspan="7"><div class="spinner"></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <div class="card-icon" style="background:rgba(239,68,68,0.15)">📉</div>
+            Anomalous Nodes — Uptime Distribution
+          </div>
+        </div>
+        <div class="chart-wrap"><canvas id="anomaly-chart"></canvas></div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════════════ -->
+    <!-- PAGE: Reliability                                                -->
+    <!-- ════════════════════════════════════════════════════════════════ -->
+    <section class="page" id="page-reliability">
+      <div class="grid-2" style="margin-bottom:20px">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <div class="card-icon" style="background:rgba(16,185,129,0.15)">🏆</div>
+              Reliability Breakdown
+            </div>
+          </div>
+          <div class="chart-wrap"><canvas id="reliability-pie"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <div class="card-icon" style="background:rgba(59,130,246,0.15)">📊</div>
+              Node Mean Uptime (Top 10)
+            </div>
+          </div>
+          <div class="chart-wrap"><canvas id="reliability-bar"></canvas></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <div class="card-icon" style="background:rgba(139,92,246,0.15)">📋</div>
+            Node Reliability Rankings
+          </div>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="data-table" id="reliability-table">
+            <thead>
+              <tr>
+                <th>Rank</th><th>Node ID</th><th>Node Name</th>
+                <th>Mean Uptime</th><th>Min</th><th>Max</th><th>Std Dev</th><th>Uptime %</th><th>Tier</th>
+              </tr>
+            </thead>
+            <tbody id="reliability-body"><tr><td colspan="9"><div class="spinner"></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════════════ -->
+    <!-- PAGE: Maintenance                                                -->
+    <!-- ════════════════════════════════════════════════════════════════ -->
+    <section class="page" id="page-maintenance">
+      <div class="grid-2" style="margin-bottom:20px">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <div class="card-icon" style="background:rgba(245,158,11,0.15)">🔧</div>
+              Failure Frequency by Asset
+            </div>
+          </div>
+          <div class="chart-wrap-lg"><canvas id="failure-chart"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <div class="card-icon" style="background:rgba(239,68,68,0.15)">📋</div>
+              Top Failing Assets
+            </div>
+          </div>
+          <div id="top-failures-list"><div class="spinner"></div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <div class="card-icon" style="background:rgba(59,130,246,0.15)">📋</div>
+            Maintenance Log
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-ghost" onclick="filterLogs(null)">All</button>
+            <button class="btn btn-ghost" onclick="filterLogs(false)">Open</button>
+            <button class="btn btn-ghost" onclick="filterLogs(true)">Resolved</button>
+          </div>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="data-table" id="maint-table">
+            <thead>
+              <tr>
+                <th>Log ID</th><th>Asset ID</th><th>Issue</th>
+                <th>Status</th><th>Date</th>
+              </tr>
+            </thead>
+            <tbody id="maint-body"><tr><td colspan="5"><div class="spinner"></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════════════ -->
+    <!-- PAGE: Report                                                     -->
+    <!-- ════════════════════════════════════════════════════════════════ -->
+    <section class="page" id="page-report">
+      <div id="report-content"><div class="spinner"></div></div>
+    </section>
+
+  </main><!-- /main-content -->
+</div><!-- /#app -->
+
+<div id="toast-container"></div>
+
+<!-- ─── JavaScript ──────────────────────────────────────────────────────── -->
+<script>
+/* ══════════════════════════════════════════════════════════════════════════
+   State & Config
+══════════════════════════════════════════════════════════════════════════ */
+const API = '';  // same origin
+
+let chartInstances = {};
+let assetsCache    = [];
+let logsCache      = [];
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Chart.js Defaults
+══════════════════════════════════════════════════════════════════════════ */
+Chart.defaults.color           = '#64748b';
+Chart.defaults.font.family     = "'Inter', sans-serif";
+Chart.defaults.borderColor     = 'rgba(255,255,255,0.05)';
+Chart.defaults.plugins.legend.labels.boxWidth = 12;
+Chart.defaults.plugins.legend.labels.padding  = 16;
+Chart.defaults.plugins.tooltip.backgroundColor = '#0d1424';
+Chart.defaults.plugins.tooltip.borderColor      = 'rgba(255,255,255,0.08)';
+Chart.defaults.plugins.tooltip.borderWidth      = 1;
+Chart.defaults.plugins.tooltip.padding          = 10;
+Chart.defaults.plugins.tooltip.titleColor       = '#e2e8f0';
+Chart.defaults.plugins.tooltip.bodyColor        = '#94a3b8';
+
+const PALETTE = ['#3b82f6','#8b5cf6','#06b6d4','#10b981','#f59e0b','#ef4444','#ec4899','#14b8a6'];
+
+function destroyChart(id) {
+  if (chartInstances[id]) {
+    chartInstances[id].destroy();
+    delete chartInstances[id];
+  }
+}
+
+function makeChart(id, config) {
+  destroyChart(id);
+  const ctx = document.getElementById(id);
+  if (!ctx) return;
+  chartInstances[id] = new Chart(ctx, config);
+  return chartInstances[id];
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Navigation
+══════════════════════════════════════════════════════════════════════════ */
+const PAGE_TITLES = {
+  overview:    ['Dashboard Overview',     'Real-time IT asset & network performance insights'],
+  assets:      ['Hardware Assets',        'Inventory management & age analytics'],
+  network:     ['Network Uptime & Stats', 'NumPy-powered statistical analysis'],
+  anomalies:   ['Anomaly Detection',      'Z-score based outlier identification'],
+  reliability: ['Node Reliability',       'Fleet-wide uptime ranking & tier classification'],
+  maintenance: ['Maintenance Logs',       'Incident tracking & failure frequency'],
+  report:      ['Summary Report',         'Comprehensive analytics export'],
+};
+
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+
+  document.getElementById('page-' + name).classList.add('active');
+  const navEl = document.getElementById('nav-' + name);
+  if (navEl) navEl.classList.add('active');
+
+  const [title, sub] = PAGE_TITLES[name] || ['Dashboard', ''];
+  document.getElementById('page-title').textContent = title;
+  document.getElementById('page-sub').textContent   = sub;
+
+  // Lazy load page data
+  if (name === 'assets')      loadAssetsPage();
+  if (name === 'network')     loadNetworkPage();
+  if (name === 'anomalies')   loadAnomalies();
+  if (name === 'reliability') loadReliability();
+  if (name === 'maintenance') loadMaintenancePage();
+  if (name === 'report')      loadReport();
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   API helpers
+══════════════════════════════════════════════════════════════════════════ */
+async function api(path) {
+  const r = await fetch(API + path);
+  if (!r.ok) throw new Error(`API error ${r.status}`);
+  return r.json();
+}
+
+function toast(icon, msg, color = 'var(--accent-blue)') {
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.innerHTML = `<span style="font-size:18px">${icon}</span><span>${msg}</span>`;
+  el.style.borderLeftColor = color;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Overview — KPI Grid
+══════════════════════════════════════════════════════════════════════════ */
+async function loadOverview() {
+  try {
+    const [report, stats, anomalies, failures] = await Promise.all([
+      api('/api/report/summary'),
+      api('/api/uptime/stats'),
+      api('/api/uptime/anomalies'),
+      api('/api/maintenance/failures'),
+    ]);
+
+    const kpis = [
+      {
+        label: 'Total Assets',
+        value: report.asset_overview.total_assets,
+        sub: `${report.asset_overview.by_status?.Active || 0} active`,
+        badge: 'blue', badgeText: 'Fleet',
+        icon: '🖥️', color: 'var(--accent-blue)',
+      },
+      {
+        label: 'Avg Uptime',
+        value: stats.mean_uptime + 'h',
+        sub: `${stats.overall_uptime_pct}% availability`,
+        badge: stats.overall_uptime_pct >= 95 ? 'green' : 'amber',
+        badgeText: stats.overall_uptime_pct >= 95 ? 'Healthy' : 'Warning',
+        icon: '📶', color: 'var(--accent-green)',
+      },
+      {
+        label: 'Anomalies',
+        value: anomalies.count,
+        sub: 'Below 2σ threshold',
+        badge: anomalies.count === 0 ? 'green' : 'red',
+        badgeText: anomalies.count === 0 ? 'Clear' : 'Action needed',
+        icon: '⚠️', color: 'var(--accent-red)',
+      },
+      {
+        label: 'Open Incidents',
+        value: report.maintenance_health.open_incidents,
+        sub: `${report.maintenance_health.resolution_rate_pct}% resolved`,
+        badge: report.maintenance_health.open_incidents === 0 ? 'green' : 'amber',
+        badgeText: report.maintenance_health.open_incidents === 0 ? 'Clear' : 'Open',
+        icon: '🔧', color: 'var(--accent-amber)',
+      },
+      {
+        label: 'Std Deviation',
+        value: stats.std_deviation + 'h',
+        sub: `Variance: ${stats.variance}`,
+        badge: 'blue', badgeText: 'NumPy',
+        icon: '📊', color: 'var(--accent-purple)',
+      },
+    ];
+
+    document.getElementById('kpi-grid').innerHTML = kpis.map(k => `
+      <div class="kpi-card" style="--kpi-color:${k.color}">
+        <div class="kpi-icon">${k.icon}</div>
+        <div class="kpi-label">${k.label}</div>
+        <div class="kpi-value">${k.value}</div>
+        <div class="kpi-sub">
+          <span class="badge badge-${k.badge}">${k.badgeText}</span>
+          &nbsp;${k.sub}
+        </div>
+      </div>
+    `).join('');
+
+    // Network KPI list
+    document.getElementById('network-kpi-list').innerHTML = [
+      ['Mean Uptime',    stats.mean_uptime + ' hrs'],
+      ['Median Uptime',  stats.median_uptime + ' hrs'],
+      ['Min Uptime',     stats.min_uptime + ' hrs'],
+      ['Max Uptime',     stats.max_uptime + ' hrs'],
+      ['Std Deviation',  stats.std_deviation + ' hrs'],
+      ['25th Percentile', stats.p25_uptime + ' hrs'],
+      ['75th Percentile', stats.p75_uptime + ' hrs'],
+      ['Fleet Availability', stats.overall_uptime_pct + '%'],
+    ].map(([l, v]) => `
+      <div class="stat-row">
+        <span class="stat-row-label">${l}</span>
+        <span class="stat-row-value">${v}</span>
+      </div>
+    `).join('');
+
+    // Maintenance health list
+    const mh = report.maintenance_health;
+    document.getElementById('maint-health-list').innerHTML = `
+      <div class="stat-row">
+        <span class="stat-row-label">Total Incidents</span>
+        <span class="stat-row-value">${mh.total_incidents}</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-row-label">Open Incidents</span>
+        <span class="stat-row-value" style="color:var(--accent-red)">${mh.open_incidents}</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-row-label">Resolved</span>
+        <span class="stat-row-value" style="color:var(--accent-green)">${mh.resolved_incidents}</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-row-label">Resolution Rate</span>
+        <span class="stat-row-value">${mh.resolution_rate_pct}%</span>
+      </div>
+      <div style="margin-top:16px">
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px">RESOLUTION RATE</div>
+        <div class="progress-bar">
+          <div class="progress-fill" style="width:${mh.resolution_rate_pct}%;background:linear-gradient(90deg,var(--accent-green),#34d399)"></div>
+        </div>
+      </div>
+    `;
+
+    // Trend chart
+    const trend = await api('/api/uptime/trend');
+    makeChart('trend-chart', {
+      type: 'line',
+      data: {
+        labels: trend.trend.map(t => t.date),
+        datasets: [{
+          label: 'Mean Uptime (h)',
+          data: trend.trend.map(t => t.mean_uptime),
+          borderColor: '#3b82f6',
+          backgroundColor: 'rgba(59,130,246,0.08)',
+          fill: true,
+          tension: 0.4,
+          pointRadius: 4,
+          pointBackgroundColor: '#3b82f6',
+        }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { color: 'rgba(255,255,255,0.03)' } },
+          y: { min: 0, max: 24, grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { callback: v => v + 'h' } },
+        },
+      },
+    });
+
+    // Asset type chart
+    const types = await api('/api/assets/types');
+    makeChart('asset-type-chart', {
+      type: 'doughnut',
+      data: {
+        labels: types.map(t => t.type),
+        datasets: [{
+          data: types.map(t => t.count),
+          backgroundColor: PALETTE,
+          borderWidth: 0,
+          hoverOffset: 6,
+        }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        cutout: '62%',
+        plugins: { legend: { position: 'right' } },
+      },
+    });
+
+    document.getElementById('last-refresh').textContent = 'Updated ' + new Date().toLocaleTimeString();
+    toast('✅', 'Dashboard data loaded', 'var(--accent-green)');
+
+  } catch (err) {
+    toast('❌', 'Failed to load data: ' + err.message, 'var(--accent-red)');
+    console.error(err);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Assets Page
+══════════════════════════════════════════════════════════════════════════ */
+async function loadAssetsPage() {
+  try {
+    const [assets, locations, age] = await Promise.all([
+      api('/api/assets?limit=100'),
+      api('/api/assets/locations'),
+      api('/api/assets/age'),
+    ]);
+
+    assetsCache = assets.items;
+    renderAssetsTable(assetsCache);
+
+    makeChart('location-chart', {
+      type: 'bar',
+      data: {
+        labels: locations.map(l => l.location),
+        datasets: [{
+          label: 'Assets',
+          data: locations.map(l => l.count),
+          backgroundColor: PALETTE,
+          borderRadius: 6,
+          borderSkipped: false,
+        }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { display: false } },
+          y: { grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { precision: 0 } },
+        },
+      },
+    });
+
+    makeChart('age-chart', {
+      type: 'bar',
+      data: {
+        labels: age.labels,
+        datasets: [{
+          label: 'Assets',
+          data: age.counts,
+          backgroundColor: 'rgba(139,92,246,0.7)',
+          borderRadius: 6,
+          borderSkipped: false,
+        }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { display: false } },
+          y: { grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { precision: 0 } },
+        },
+      },
+    });
+
+  } catch(err) { toast('❌', err.message, 'var(--accent-red)'); }
+}
+
+function renderAssetsTable(data) {
+  document.getElementById('assets-body').innerHTML = data.map(a => `
+    <tr>
+      <td class="mono">${a.asset_id}</td>
+      <td style="font-weight:500;color:var(--text-primary)">${a.name}</td>
+      <td>${a.type}</td>
+      <td>${a.location}</td>
+      <td>
+        <span class="badge ${a.status === 'Active' ? 'badge-green' : a.status === 'Maintenance' ? 'badge-amber' : 'badge-red'}">
+          ${a.status}
+        </span>
+      </td>
+      <td class="mono">${a.purchase_date}</td>
+      <td class="mono">${a.age_days}</td>
+    </tr>
+  `).join('');
+}
+
+function filterAssets(status) {
+  const filtered = status === 'all'
+    ? assetsCache
+    : assetsCache.filter(a => a.status.toLowerCase() === status);
+  renderAssetsTable(filtered);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Network Page
+══════════════════════════════════════════════════════════════════════════ */
+async function loadNetworkPage() {
+  try {
+    const [stats, trend] = await Promise.all([
+      api('/api/uptime/stats'),
+      api('/api/uptime/trend'),
+    ]);
+
+    document.getElementById('network-kpis').innerHTML = [
+      { label: 'Mean Uptime',       value: stats.mean_uptime + 'h',     color: 'var(--accent-blue)',   icon: '📶' },
+      { label: 'Fleet Availability',value: stats.overall_uptime_pct + '%', color:'var(--accent-green)', icon: '✅' },
+      { label: 'Std Deviation',     value: stats.std_deviation + 'h',   color: 'var(--accent-purple)', icon: '📊' },
+      { label: 'Min Uptime',        value: stats.min_uptime + 'h',      color: 'var(--accent-red)',    icon: '📉' },
+    ].map(k => `
+      <div class="kpi-card" style="--kpi-color:${k.color}">
+        <div class="kpi-icon">${k.icon}</div>
+        <div class="kpi-label">${k.label}</div>
+        <div class="kpi-value">${k.value}</div>
+      </div>
+    `).join('');
+
+    document.getElementById('network-stats-detail').innerHTML = [
+      ['Mean',           stats.mean_uptime + ' h'],
+      ['Median',         stats.median_uptime + ' h'],
+      ['Min',            stats.min_uptime + ' h'],
+      ['Max',            stats.max_uptime + ' h'],
+      ['Std Deviation',  stats.std_deviation + ' h'],
+      ['Variance',       stats.variance],
+      ['25th Pct',       stats.p25_uptime + ' h'],
+      ['75th Pct',       stats.p75_uptime + ' h'],
+      ['Total Records',  stats.total_records],
+      ['Availability',   stats.overall_uptime_pct + ' %'],
+    ].map(([l,v]) => `
+      <div class="stat-row">
+        <span class="stat-row-label">${l}</span>
+        <span class="stat-row-value">${v}</span>
+      </div>
+    `).join('');
+
+    makeChart('trend-chart-2', {
+      type: 'line',
+      data: {
+        labels: trend.trend.map(t => t.date),
+        datasets: [{
+          label: 'Mean Uptime (h)',
+          data: trend.trend.map(t => t.mean_uptime),
+          borderColor: '#3b82f6',
+          backgroundColor: 'rgba(59,130,246,0.1)',
+          fill: true, tension: 0.4, pointRadius: 5,
+          pointBackgroundColor: '#3b82f6',
+        }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { color: 'rgba(255,255,255,0.03)' } },
+          y: { min: 0, max: 24, grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { callback: v => v + 'h' } },
+        },
+      },
+    });
+
+  } catch(err) { toast('❌', err.message, 'var(--accent-red)'); }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Anomalies Page
+══════════════════════════════════════════════════════════════════════════ */
+async function loadAnomalies() {
+  const z = document.getElementById('z-select')?.value || '2.0';
+  document.getElementById('anomaly-body').innerHTML = '<tr><td colspan="7"><div class="spinner"></div></td></tr>';
+  try {
+    const data = await api(`/api/uptime/anomalies?z_threshold=${z}`);
+
+    if (data.count === 0) {
+      document.getElementById('anomaly-body').innerHTML = `
+        <tr><td colspan="7" style="text-align:center;padding:32px;color:var(--accent-green)">
+          ✅ No anomalies detected at ${z}σ threshold
+        </td></tr>`;
+    } else {
+      document.getElementById('anomaly-body').innerHTML = data.anomalies.map(a => `
+        <tr>
+          <td class="mono">${a.node_id}</td>
+          <td style="font-weight:500;color:var(--text-primary)">${a.node_name}</td>
+          <td class="mono">${a.date}</td>
+          <td class="mono" style="color:var(--accent-red)">${a.uptime_hours}</td>
+          <td class="mono">${a.downtime_hours}</td>
+          <td class="mono">${a.z_score}</td>
+          <td><span class="badge sev-${a.severity}">${a.severity}</span></td>
+        </tr>
+      `).join('');
+    }
+
+    // Chart
+    makeChart('anomaly-chart', {
+      type: 'bar',
+      data: {
+        labels: data.anomalies.map(a => a.node_name + ' ' + a.date),
+        datasets: [{
+          label: 'Uptime (h)',
+          data: data.anomalies.map(a => a.uptime_hours),
+          backgroundColor: data.anomalies.map(a =>
+            a.severity === 'critical' ? '#ef4444' :
+            a.severity === 'high'     ? '#f59e0b' : '#8b5cf6'),
+          borderRadius: 6, borderSkipped: false,
+        }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { display: false }, ticks: { maxRotation: 45 } },
+          y: { min: 0, max: 24, grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { callback: v => v + 'h' } },
+        },
+      },
+    });
+
+  } catch(err) { toast('❌', err.message, 'var(--accent-red)'); }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Reliability Page
+══════════════════════════════════════════════════════════════════════════ */
+async function loadReliability() {
+  try {
+    const data = await api('/api/uptime/reliability');
+    const nodes = data.nodes;
+
+    // Tier counts for pie
+    const tiers = {};
+    nodes.forEach(n => { tiers[n.reliability] = (tiers[n.reliability] || 0) + 1; });
+    const tierColors = { excellent: '#10b981', good: '#3b82f6', fair: '#f59e0b', poor: '#ef4444' };
+
+    makeChart('reliability-pie', {
+      type: 'doughnut',
+      data: {
+        labels: Object.keys(tiers),
+        datasets: [{
+          data: Object.values(tiers),
+          backgroundColor: Object.keys(tiers).map(t => tierColors[t] || '#64748b'),
+          borderWidth: 0, hoverOffset: 6,
+        }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        cutout: '60%',
+        plugins: { legend: { position: 'bottom' } },
+      },
+    });
+
+    const top10 = nodes.slice(0, 10);
+    makeChart('reliability-bar', {
+      type: 'bar',
+      data: {
+        labels: top10.map(n => n.node_name),
+        datasets: [{
+          label: 'Mean Uptime (h)',
+          data: top10.map(n => n.mean_uptime),
+          backgroundColor: top10.map(n => tierColors[n.reliability] || '#3b82f6'),
+          borderRadius: 6, borderSkipped: false,
+        }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        indexAxis: 'y',
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { min: 0, max: 24, grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { callback: v => v + 'h' } },
+          y: { grid: { display: false } },
+        },
+      },
+    });
+
+    document.getElementById('reliability-body').innerHTML = nodes.map((n, i) => `
+      <tr>
+        <td class="mono" style="color:var(--text-muted)">#${i+1}</td>
+        <td class="mono">${n.node_id}</td>
+        <td style="font-weight:500;color:var(--text-primary)">${n.node_name}</td>
+        <td class="mono">${n.mean_uptime}h</td>
+        <td class="mono">${n.min_uptime}h</td>
+        <td class="mono">${n.max_uptime}h</td>
+        <td class="mono">${n.std_uptime}</td>
+        <td>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div class="progress-bar" style="width:80px">
+              <div class="progress-fill" style="width:${n.uptime_pct}%;background:${tierColors[n.reliability]||'#3b82f6'}"></div>
+            </div>
+            <span class="mono" style="font-size:11px">${n.uptime_pct}%</span>
+          </div>
+        </td>
+        <td><span class="badge sev-${n.reliability}">${n.reliability}</span></td>
+      </tr>
+    `).join('');
+
+  } catch(err) { toast('❌', err.message, 'var(--accent-red)'); }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Maintenance Page
+══════════════════════════════════════════════════════════════════════════ */
+async function loadMaintenancePage() {
+  try {
+    const [logsData, failures] = await Promise.all([
+      api('/api/maintenance/logs?limit=100'),
+      api('/api/maintenance/failures'),
+    ]);
+
+    logsCache = logsData.items;
+    renderLogsTable(logsCache);
+
+    // Failure chart
+    const top8 = failures.failure_frequency.slice(0, 8);
+    makeChart('failure-chart', {
+      type: 'bar',
+      data: {
+        labels: top8.map(f => f.asset_id + (f.name ? '\n' + f.name : '')),
+        datasets: [
+          {
+            label: 'Total Failures',
+            data: top8.map(f => f.failure_count),
+            backgroundColor: 'rgba(245,158,11,0.7)',
+            borderRadius: 6, borderSkipped: false,
+          },
+          {
+            label: 'Unresolved',
+            data: top8.map(f => f.unresolved),
+            backgroundColor: 'rgba(239,68,68,0.7)',
+            borderRadius: 6, borderSkipped: false,
+          },
+        ],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'top' } },
+        scales: {
+          x: { grid: { display: false } },
+          y: { grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { precision: 0 } },
+        },
+      },
+    });
+
+    // Top failing assets list
+    document.getElementById('top-failures-list').innerHTML = failures.failure_frequency.slice(0, 6).map((f, i) => `
+      <div style="padding:12px 0;border-bottom:1px solid var(--border);${i === 5 ? 'border-bottom:none' : ''}">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+          <span style="font-weight:600;color:var(--text-primary);font-size:13px">${f.name || f.asset_id}</span>
+          <span class="badge badge-${f.unresolved > 0 ? 'red' : 'green'}">${f.failure_count} incidents</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-bottom:8px">
+          <span>${f.asset_id} · ${f.type || '—'}</span>
+          <span>${f.unresolved} open</span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" style="width:${Math.min(f.failure_count / 6 * 100, 100)}%;background:linear-gradient(90deg,var(--accent-amber),var(--accent-red))"></div>
+        </div>
+      </div>
+    `).join('');
+
+  } catch(err) { toast('❌', err.message, 'var(--accent-red)'); }
+}
+
+function renderLogsTable(data) {
+  document.getElementById('maint-body').innerHTML = data.map(l => `
+    <tr>
+      <td class="mono">${l.log_id}</td>
+      <td class="mono">${l.asset_id}</td>
+      <td style="max-width:260px">${l.issue}</td>
+      <td>
+        <span class="badge ${l.resolved === true ? 'badge-green' : 'badge-red'}">
+          ${l.resolved === true ? '✓ Resolved' : '✗ Open'}
+        </span>
+      </td>
+      <td class="mono">${l.date}</td>
+    </tr>
+  `).join('');
+}
+
+function filterLogs(resolved) {
+  const filtered = resolved === null
+    ? logsCache
+    : logsCache.filter(l => l.resolved === resolved);
+  renderLogsTable(filtered);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Report Page
+══════════════════════════════════════════════════════════════════════════ */
+async function loadReport() {
+  try {
+    const r = await api('/api/report/summary');
+    const ao = r.asset_overview;
+    const nh = r.network_health;
+    const mh = r.maintenance_health;
+
+    document.getElementById('report-content').innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+        <div>
+          <h2 style="font-size:18px;font-weight:700">Analytics Summary Report</h2>
+          <p style="color:var(--text-muted);font-size:12px;margin-top:4px">Generated: ${new Date(r.metadata.generated_at).toLocaleString()}</p>
+        </div>
+        <span class="badge badge-blue">v${r.metadata.report_version}</span>
+      </div>
+
+      <div class="grid-3" style="margin-bottom:20px">
+        <div class="card">
+          <div class="card-title" style="margin-bottom:16px">🖥️ Asset Overview</div>
+          ${Object.entries(ao.by_status||{}).map(([k,v]) => `
+            <div class="stat-row"><span class="stat-row-label">${k}</span><span class="stat-row-value">${v}</span></div>
+          `).join('')}
+          <div class="stat-row"><span class="stat-row-label">Total Assets</span><span class="stat-row-value" style="color:var(--accent-blue)">${ao.total_assets}</span></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title" style="margin-bottom:16px">📡 Network Health</div>
+          <div class="stat-row"><span class="stat-row-label">Total Nodes</span><span class="stat-row-value">${nh.total_nodes}</span></div>
+          <div class="stat-row"><span class="stat-row-label">Fleet Availability</span><span class="stat-row-value" style="color:var(--accent-green)">${nh.overall_uptime_pct}%</span></div>
+          <div class="stat-row"><span class="stat-row-label">Excellent Nodes</span><span class="stat-row-value">${nh.excellent_reliability}</span></div>
+          <div class="stat-row"><span class="stat-row-label">Poor Nodes</span><span class="stat-row-value" style="color:var(--accent-red)">${nh.poor_reliability}</span></div>
+          <div class="stat-row"><span class="stat-row-label">Anomalies</span><span class="stat-row-value">${nh.anomalies_detected}</span></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title" style="margin-bottom:16px">🔧 Maintenance</div>
+          <div class="stat-row"><span class="stat-row-label">Total Incidents</span><span class="stat-row-value">${mh.total_incidents}</span></div>
+          <div class="stat-row"><span class="stat-row-label">Open</span><span class="stat-row-value" style="color:var(--accent-red)">${mh.open_incidents}</span></div>
+          <div class="stat-row"><span class="stat-row-label">Resolved</span><span class="stat-row-value" style="color:var(--accent-green)">${mh.resolved_incidents}</span></div>
+          <div class="stat-row"><span class="stat-row-label">Resolution Rate</span><span class="stat-row-value">${mh.resolution_rate_pct}%</span></div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title" style="margin-bottom:16px">⚠️ Top Anomalies</div>
+          ${r.top_anomalies.length === 0
+            ? '<p style="color:var(--accent-green);font-size:13px">✅ No anomalies detected</p>'
+            : r.top_anomalies.slice(0,5).map(a => `
+              <div class="stat-row">
+                <span class="stat-row-label">${a.node_name} (${a.date})</span>
+                <span class="stat-row-value" style="color:var(--accent-red)">${a.uptime_hours}h</span>
+              </div>
+            `).join('')}
+        </div>
+
+        <div class="card">
+          <div class="card-title" style="margin-bottom:16px">🔴 Top Failing Assets</div>
+          ${r.top_failing_assets.slice(0,5).map(f => `
+            <div class="stat-row">
+              <span class="stat-row-label">${f.name || f.asset_id}</span>
+              <span class="stat-row-value">${f.failure_count} incidents</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:20px">
+        <div class="card-title" style="margin-bottom:16px">📦 Assets by Type</div>
+        <div style="display:flex;flex-wrap:wrap;gap:10px">
+          ${Object.entries(ao.by_type||{}).map(([k,v]) => `
+            <div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.15);border-radius:8px;padding:10px 16px;text-align:center">
+              <div style="font-size:20px;margin-bottom:4px">${typeIcon(k)}</div>
+              <div style="font-size:18px;font-weight:700;font-family:'JetBrains Mono',monospace">${v}</div>
+              <div style="font-size:11px;color:var(--text-muted)">${k}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+
+  } catch(err) { toast('❌', err.message, 'var(--accent-red)'); }
+}
+
+function typeIcon(type) {
+  const icons = { Laptop:'💻', Server:'🖥️', Network:'📡', Firewall:'🛡️', Router:'📶',
+    Switch:'🔀', UPS:'🔋', Storage:'💾', Desktop:'🖥️', Printer:'🖨️', Workstation:'⚙️',
+    NAS:'📦', Phone:'📞', 'Access Point':'📡' };
+  return icons[type] || '📦';
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Refresh
+══════════════════════════════════════════════════════════════════════════ */
+async function refreshAll() {
+  const btn = document.getElementById('refresh-btn');
+  btn.textContent = '↻ Refreshing…';
+  btn.disabled = true;
+  // Re-run overview data
+  destroyChart('trend-chart');
+  destroyChart('asset-type-chart');
+  await loadOverview();
+  btn.textContent = '↻ Refresh';
+  btn.disabled = false;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Init
+══════════════════════════════════════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', () => {
+  loadOverview();
+});
+</script>
+</body>
+</html>

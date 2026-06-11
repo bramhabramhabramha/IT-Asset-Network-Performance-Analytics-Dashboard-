@@ -1,0 +1,36 @@
+log_id,asset_id,issue,resolved,date
+L001,A001,RAM failure,True,2023-02-10
+L002,A002,Port malfunction,False,2023-03-05
+L003,A004,Disk array degraded,True,2023-01-15
+L004,A001,Battery replacement,True,2023-04-22
+L005,A006,Paper jam - hardware,True,2023-01-08
+L006,A008,Interface flapping,False,2023-05-12
+L007,A004,Fan failure,True,2023-02-28
+L008,A016,Memory module error,True,2023-03-19
+L009,A013,Firmware update failure,False,2023-04-01
+L010,A001,Screen backlight issue,True,2023-05-30
+L011,A010,Battery cell degradation,True,2023-01-25
+L012,A002,VLAN misconfiguration,True,2023-02-14
+L013,A016,RAID controller fault,False,2023-06-10
+L014,A004,NIC failure,True,2023-03-08
+L015,A008,BGP session drop,True,2023-04-17
+L016,A011,Storage pool degraded,False,2023-05-22
+L017,A004,Power supply failure,True,2023-06-05
+L018,A016,Kernel panic loop,True,2023-01-31
+L019,A001,SSD wear out,False,2023-06-20
+L020,A013,VPN tunnel instability,False,2023-05-15
+L021,A003,Touchpad malfunction,True,2023-02-18
+L022,A007,Keyboard unresponsive,True,2023-04-09
+L023,A009,Monitor port failure,True,2023-03-27
+L024,A014,Overheating - fan clog,True,2023-05-03
+L025,A018,WiFi card driver issue,True,2023-06-12
+L026,A002,STP loop detected,True,2023-01-19
+L027,A016,Storage I/O bottleneck,False,2023-06-18
+L028,A004,Memory ECC errors,True,2023-04-30
+L029,A008,Route flapping - ISP,True,2023-05-08
+L030,A010,UPS calibration error,True,2023-02-22
+L031,A031,Battery swollen,False,2024-02-10
+L032,A034,RAID controller degraded,False,2024-03-15
+L033,A032,Disk failure - RAID rebuild,True,2024-01-22
+L034,A035,STP loop on uplink,True,2024-04-08
+L035,A033,AP radio module failure,False,2024-05-01
