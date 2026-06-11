@@ -53,6 +53,9 @@ http://localhost:8000/
 
 # 4. Explore the interactive Swagger API docs
 http://localhost:8000/docs
+
+# 5. Run the console analytics demonstration
+python demo.py
 ```
 
 ---
@@ -86,6 +89,18 @@ http://localhost:8000/docs
 | Method | Endpoint | Description |
 |---|---|---|
 | `GET` | `/api/report/summary` | Full analytics report (JSON) |
+
+### Uploads
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/upload/assets` | Upload and replace assets dataset (validates columns) |
+| `POST` | `/api/upload/uptime` | Upload and replace network uptime dataset (validates columns) |
+| `POST` | `/api/upload/maintenance` | Upload and replace maintenance logs dataset (validates columns) |
+
+### WebSockets
+| Protocol | Endpoint | Description |
+|---|---|---|
+| `WS` | `/ws/live` | Stream real-time network uptime stats & anomaly counts every 5s |
 
 ---
 
