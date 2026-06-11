@@ -110,25 +110,7 @@ http://localhost:8000/docs
 - Anomaly log with timestamp tracking
 - Failure frequency history
 
----
 
-## 📊 Resume Bullets
-
-```
-• FastAPI + Pandas — automated IT asset tracking REST API with structured 
-  CSV data ingestion, normalization, and multi-source pipeline (60% reporting 
-  effort reduction via automated endpoints)
-
-• NumPy statistical engine for network performance analysis: Z-score anomaly 
-  detection, percentile calculations, and reliability tier classification 
-  across 100+ simulated enterprise nodes via 14 REST endpoints
-
-• Pandas pipelines for multi-source data ingestion (hardware inventory, 
-  network uptime, maintenance logs) with automated cleaning, type coercion, 
-  and summary report generation persisted to SQLite
-```
-
----
 
 ## 🛠 Tech Stack
 
